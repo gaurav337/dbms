@@ -164,7 +164,7 @@ Relational algebra is a procedural query language. Expressions take relations as
 3. **Division Operator ($\div$)**: Used for "for all" / "universal" queries (e.g., "find students who have taken all courses offered by CSE").
    $$R(A, B) \div S(B) = \pi_A(R) - \pi_A((\pi_A(R) \times S) - R)$$
 4. **Aggregation Operator ($\mathcal{G}$)**:
-   $$_{G_1, G_2, \dots, G_k}\mathcal{G}_{F_1(A_1), \dots, F_m(A_m)}(R)$$
+   $${}_{G_1, G_2, \dots, G_k}\mathcal{G}_{F_1(A_1), \dots, F_m(A_m)}(R)$$
    Groups tuples by $G_1, \dots, G_k$ and evaluates aggregate functions (SUM, AVG, MIN, MAX, COUNT).
 
 ---
@@ -280,18 +280,18 @@ erDiagram
 #### (b) Relational Database Schema
 Underlined attributes indicate **Primary Keys**; bold/foreign keys are explicitly noted.
 
-1. **`Course`** ($\underline{\text{Course\_No}}$, $\text{Title}$, $\text{Credits}$, $\text{Syllabus}$)
-2. **`Course_Prereq`** ($\underline{\text{Course\_No}, \text{Prereq\_Course\_No}}$)
+1. **`Course`** (<u>Course_No</u>, Title, Credits, Syllabus)
+2. **`Course_Prereq`** (<u>Course_No</u>, <u>Prereq_Course_No</u>)
    - Foreign Key `Course_No` references `Course(Course_No)` ON DELETE CASCADE
    - Foreign Key `Prereq_Course_No` references `Course(Course_No)`
-3. **`Course_Offering`** ($\underline{\text{Course\_No}, \text{Year}, \text{Semester}, \text{Section\_No}}$, $\text{Timings}$, $\text{Classroom}$)
+3. **`Course_Offering`** (<u>Course_No</u>, <u>Year</u>, <u>Semester</u>, <u>Section_No</u>, Timings, Classroom)
    - Foreign Key `Course_No` references `Course(Course_No)` ON DELETE CASCADE
-4. **`Instructor`** ($\underline{\text{Instructor\_ID}}$, $\text{Name}$, $\text{Department}$, $\text{Title}$)
-5. **`Teaches`** ($\underline{\text{Instructor\_ID}, \text{Course\_No}, \text{Year}, \text{Semester}, \text{Section\_No}}$)
+4. **`Instructor`** (<u>Instructor_ID</u>, Name, Department, Title)
+5. **`Teaches`** (<u>Instructor_ID</u>, <u>Course_No</u>, <u>Year</u>, <u>Semester</u>, <u>Section_No</u>)
    - Foreign Key `Instructor_ID` references `Instructor(Instructor_ID)`
    - Foreign Key `(Course_No, Year, Semester, Section_No)` references `Course_Offering`
-6. **`Student`** ($\underline{\text{Student\_ID}}$, $\text{Name}$, $\text{Program}$)
-7. **`Enrollment`** ($\underline{\text{Student\_ID}, \text{Course\_No}, \text{Year}, \text{Semester}, \text{Section\_No}}$, $\text{Grade}$)
+6. **`Student`** (<u>Student_ID</u>, Name, Program)
+7. **`Enrollment`** (<u>Student_ID</u>, <u>Course_No</u>, <u>Year</u>, <u>Semester</u>, <u>Section_No</u>, Grade)
    - Foreign Key `Student_ID` references `Student(Student_ID)`
    - Foreign Key `(Course_No, Year, Semester, Section_No)` references `Course_Offering`
 
@@ -308,7 +308,7 @@ JOIN Enrollment E ON S.Student_ID = E.Student_ID
 WHERE E.Course_No = 'CSN15401';
 ```
 - **Relational Algebra**:
-$$\pi_{\text{Name}}\Big(\text{Student} \bowtie \sigma_{\text{Course\_No} = \text{'CSN15401'}}(\text{Enrollment})\Big)$$
+$$\pi_{\text{Name}}\Big(\text{Student} \bowtie \sigma_{\text{CourseNo} = \text{'CSN15401'}}(\text{Enrollment})\Big)$$
 
 ---
 
@@ -335,7 +335,7 @@ JOIN Course C ON E.Course_No = C.Course_No
 WHERE C.Title = 'DBMS';
 ```
 - **Relational Algebra**:
-$$\pi_{\text{Student\_ID}, \text{Name}, \text{Program}}\Big(\text{Student} \bowtie \text{Enrollment} \bowtie \sigma_{\text{Title} = \text{'DBMS'}}(\text{Course})\Big)$$
+$$\pi_{\text{StudentID}, \text{Name}, \text{Program}}\Big(\text{Student} \bowtie \text{Enrollment} \bowtie \sigma_{\text{Title} = \text{'DBMS'}}(\text{Course})\Big)$$
 
 ---
 
@@ -345,15 +345,15 @@ $$\pi_{\text{Student\_ID}, \text{Name}, \text{Program}}\Big(\text{Student} \bowt
 **Question**: Using the schema above, write a Relational Algebra query to find the `Student_ID` of students who have enrolled in **all** courses offered in the year 2024.
 **Solution**:
 1. Target Courses in 2024:
-   $$C_{2024} = \pi_{\text{Course\_No}}(\sigma_{\text{Year} = 2024}(\text{Course\_Offering}))$$
+   $$C_{2024} = \pi_{\text{CourseNo}}(\sigma_{\text{Year} = 2024}(\text{CourseOffering}))$$
 2. Student enrollments in those offerings:
-   $$SE = \pi_{\text{Student\_ID}, \text{Course\_No}}(\text{Enrollment} \bowtie \sigma_{\text{Year} = 2024}(\text{Course\_Offering}))$$
+   $$SE = \pi_{\text{StudentID}, \text{CourseNo}}(\text{Enrollment} \bowtie \sigma_{\text{Year} = 2024}(\text{CourseOffering}))$$
 3. Applying Division operator ($\div$):
    $$\text{Result} = SE \div C_{2024}$$
    Using fundamental operators:
-   $$\text{All\_Students} = \pi_{\text{Student\_ID}}(SE)$$
-   $$\text{Disqualified} = \pi_{\text{Student\_ID}}\Big( (\text{All\_Students} \times C_{2024}) - SE \Big)$$
-   $$\text{Result} = \text{All\_Students} - \text{Disqualified}$$
+   $$\text{AllStudents} = \pi_{\text{StudentID}}(SE)$$
+   $$\text{Disqualified} = \pi_{\text{StudentID}}\Big( (\text{AllStudents} \times C_{2024}) - SE \Big)$$
+   $$\text{Result} = \text{AllStudents} - \text{Disqualified}$$
 
 ---
 
@@ -471,10 +471,10 @@ An attribute $A$ is extraneous in a dependency $\alpha \to \beta \in F$ if:
 
 ### Exam Problem 1: Candidate Keys (Endsem Q3)
 **Question**:  
-Given a Relation $R(\text{Transaction\_ID}, \text{Name}, \text{Payment\_ID}, \text{Product})$ for a particular application. The functional dependencies for this relation are:
-1. $\text{Transaction\_ID} \to \text{Name}$
-2. $\text{Name} \to \text{Payment\_ID}$
-3. $\text{Payment\_ID} \to \text{Transaction\_ID}$
+Given a Relation $R(\text{TransactionID}, \text{Name}, \text{PaymentID}, \text{Product})$ for a particular application. The functional dependencies for this relation are:
+1. $\text{TransactionID} \to \text{Name}$
+2. $\text{Name} \to \text{PaymentID}$
+3. $\text{PaymentID} \to \text{TransactionID}$
 
 Find all the candidate keys for the relation $R$. [5 Marks]
 
@@ -482,7 +482,7 @@ Find all the candidate keys for the relation $R$. [5 Marks]
 
 #### Step-by-Step Solution:
 Let us abbreviate attributes:
-$T = \text{Transaction\_ID}$, $N = \text{Name}$, $P = \text{Payment\_ID}$, $D = \text{Product}$.  
+$T = \text{TransactionID}$, $N = \text{Name}$, $P = \text{PaymentID}$, $D = \text{Product}$.  
 Relation schema: $R(T, N, P, D)$.  
 FD set $F$:
 1. $T \to N$
@@ -505,7 +505,7 @@ Since $D$ (Product) is in $N$, it is never determined by any other attribute.
    Check proper subsets of $TD$:
    - $T^+ = \{T, N, P\} \ne R$
    - $D^+ = \{D\} \ne R$
-   Since no proper subset is a superkey, **$\{\text{Transaction\_ID}, \text{Product}\}$ is a Candidate Key**.
+   Since no proper subset is a superkey, **$\{\text{TransactionID}, \text{Product}\}$ is a Candidate Key**.
 
 2. Test $(ND)$:
    $$(ND)^+ = \{N, D\} \cup \{P\} \cup \{T\} = \{T, N, P, D\} = R$$
@@ -519,13 +519,13 @@ Since $D$ (Product) is in $N$, it is never determined by any other attribute.
    Check proper subsets:
    - $P^+ = \{P, T, N\} \ne R$
    - $D^+ = \{D\} \ne R$
-   Thus, **$\{\text{Payment\_ID}, \text{Product}\}$ is a Candidate Key**.
+   Thus, **$\{\text{PaymentID}, \text{Product}\}$ is a Candidate Key**.
 
 **Final Answer**:  
 There are exactly **3 candidate keys** for relation $R$:
-1. **$\{\text{Transaction\_ID}, \text{Product}\}$**
+1. **$\{\text{TransactionID}, \text{Product}\}$**
 2. **$\{\text{Name}, \text{Product}\}$**
-3. **$\{\text{Payment\_ID}, \text{Product}\}$**
+3. **$\{\text{PaymentID}, \text{Product}\}$**
 
 ---
 
@@ -1897,7 +1897,7 @@ Two relational algebra expressions are **equivalent** if they generate the exact
 ### Example Transformation (From PPT 12 Slide 15)
 **Query**: Find the names of all instructors in the Music department, along with the titles of the courses that they teach.
 - **Initial SQL / Unoptimized Expression**:
-  $$\pi_{\text{name}, \text{title}}\Big( \sigma_{\text{dept\_name} = \text{'Music'}}(\text{instructor} \bowtie \text{teaches} \bowtie \text{course}) \Big)$$
+  $$\pi_{\text{name}, \text{title}}\Big( \sigma_{\text{dept} = \text{'Music'}}(\text{instructor} \bowtie \text{teaches} \bowtie \text{course}) \Big)$$
 
 ```mermaid
 flowchart TD
@@ -1966,12 +1966,12 @@ flowchart TD
 
 ### Q3: Candidate Keys
 *(Full solution presented in Module 2.6)*
-- $R(\text{Transaction\_ID}, \text{Name}, \text{Payment\_ID}, \text{Product})$.
+- $R(\text{TransactionID}, \text{Name}, \text{PaymentID}, \text{Product})$.
 - Product does not appear on RHS of any FD $\implies$ must be in every candidate key.
 - Candidate keys:
-  1. **$\{\text{Transaction\_ID}, \text{Product}\}$**
+  1. **$\{\text{TransactionID}, \text{Product}\}$**
   2. **$\{\text{Name}, \text{Product}\}$**
-  3. **$\{\text{Payment\_ID}, \text{Product}\}$**
+  3. **$\{\text{PaymentID}, \text{Product}\}$**
 
 ---
 
