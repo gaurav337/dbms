@@ -89,22 +89,18 @@
 
 An **Entity-Relationship (ER) model** provides an abstract, conceptual representation of real-world data and relationships.
 
-```
-+-----------------------------------------------------------------------------------+
-|                                  ER MODEL NOTATION                                |
-+-----------------------------------------------------------------------------------+
-|  [ Entity Set ]         : Rectangle                                               |
-|  [[ Weak Entity Set ]]  : Double Rectangle                                        |
-|  ( Attribute )          : Ellipse (Underlined = Primary Key / Partial Key dashed) |
-|  (( Multivalued ))      : Double Ellipse                                          |
-|  ( Composite )          : Ellipse branching into sub-ellipses                     |
-|  ( Derived )            : Dashed Ellipse                                          |
-|  < Relationship Set >   : Diamond                                                 |
-|  << Identifying Rel >>  : Double Diamond (links weak entity to owner entity)      |
-|  Total Participation    : Double Line connecting entity set to relationship set   |
-|  Partial Participation  : Single Line connecting entity set to relationship set   |
-+-----------------------------------------------------------------------------------+
-```
+| ER Component | Graphical Notation | Semantic Meaning / Role |
+| :--- | :--- | :--- |
+| **Entity Set** | Rectangle | Distinct real-world object or concept (e.g., `Student`, `Course`) |
+| **Weak Entity Set** | Double Rectangle | Entity without a primary key; existential dependency on owner |
+| **Attribute** | Ellipse | Property describing an entity (Underlined = PK; Dashed = Discriminator) |
+| **Multivalued Attribute** | Double Ellipse | Can hold multiple values for a single entity (e.g., `Phone_Numbers`) |
+| **Composite Attribute** | Ellipse branching into sub-ellipses | Composed of sub-parts (e.g., `Name` $\to$ `First`, `Middle`, `Last`) |
+| **Derived Attribute** | Dashed Ellipse | Dynamically calculated from stored attributes (e.g., `Age`) |
+| **Relationship Set** | Diamond | Association among two or more entity sets |
+| **Identifying Relationship** | Double Diamond | Associates a weak entity set with its identifying owner set |
+| **Total Participation** | Double Line | Every entity in the set must participate in the relationship |
+| **Partial Participation** | Single Line | Some entities in the set may participate |
 
 ### Core Components
 1. **Entity Set**: A collection of similar real-world objects (e.g., `STUDENT`, `INSTRUCTOR`).
@@ -907,29 +903,12 @@ The decomposition is **NOT dependency preserving** because the functional depend
 
 A **transaction** is a logical unit of database processing that includes one or more database access operations (read, write).
 
-```
-+-------------------------------------------------------------------------------------------------+
-|                                         ACID PROPERTIES                                         |
-+---------------+-------------------------------------------------+-------------------------------+
-| Property      | Meaning / Guarantee                             | DBMS Implementation Mechanism |
-+---------------+-------------------------------------------------+-------------------------------+
-| **Atomicity** | "All-or-Nothing": All operations complete       | **Recovery Manager**          |
-|               | successfully, or the database is rolled back to | (Write-Ahead Logging / WAL &  |
-|               | its pre-transaction state.                      | Shadow Paging)                |
-+---------------+-------------------------------------------------+-------------------------------+
-| **Consistency**| Transaction preserves database invariants. If  | **Application Programmer** &  |
-|               | DB is consistent before, it remains consistent  | **Integrity Constraints**     |
-|               | after commit.                                   | (CHECK, FOREIGN KEY, triggers)|
-+---------------+-------------------------------------------------+-------------------------------+
-| **Isolation** | Execution of one transaction is unaffected and  | **Concurrency Control Mgr**   |
-|               | unseen by other concurrently running            | (2PL, Timestamp Ordering,     |
-|               | transactions. Intermediate states are hidden.   | MVCC, Snapshot Isolation)     |
-+---------------+-------------------------------------------------+-------------------------------+
-| **Durability**| Once a transaction commits, its updates persist | **Recovery Manager** &        |
-|               | permanently in non-volatile storage, even after | **Log Buffer Flushing**       |
-|               | power failure or system crashes.                | (OS fsync on COMMIT log record|
-+---------------+-------------------------------------------------+-------------------------------+
-```
+| ACID Property | Meaning / Guarantee | DBMS Implementation Mechanism |
+| :--- | :--- | :--- |
+| **Atomicity** | **"All-or-Nothing"**: All operations of the transaction complete successfully, or the database is completely rolled back to its pre-transaction state. | **Recovery Manager** (Write-Ahead Logging / WAL with Undo logging, Shadow Paging) |
+| **Consistency** | Transaction preserves database invariants and integrity constraints. If the database was valid before execution, it remains valid after completion. | **Application Programmer** & **DBMS Integrity Constraints** (CHECK, FOREIGN KEY, NOT NULL, triggers) |
+| **Isolation** | Execution of one transaction is unaffected and unseen by other concurrently executing transactions (equivalent to a serial execution). | **Concurrency Control Manager** (Two-Phase Locking / 2PL, Timestamp Ordering / TSO, Validation / OCC, MVCC) |
+| **Durability** | Once a transaction commits, all its updates persist permanently in non-volatile storage, even across system crashes or power failures. | **Recovery Manager** (WAL Redo-phase, Periodic Checkpointing, Non-volatile Disk / RAID) |
 
 ---
 
@@ -1099,17 +1078,12 @@ Recall that operations conflict if they belong to different transactions, access
   - From conflict on $A$: $T_0 \to T_1$
   - From conflict on $B$: $T_1 \to T_0$
 
-```
-      +------------+
-      |     T0     |<----+
-      +------------+     |
-            |            | (Conflict on B: W1(B) before R0(B))
- (Conflict  |            |
-  on A:     |            |
-  W0(A)     v            |
-  before  +------------+ |
-  R1(A))  |     T1     |-+
-          +------------+
+```mermaid
+flowchart LR
+    T0((T0)) -->|"Conflict on A:<br>W0(A) before R1(A)"| T1((T1))
+    T1 -->|"Conflict on B:<br>W1(B) before R0(B)"| T0
+    classDef cycleNode fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    class T0,T1 cycleNode;
 ```
 
 ---
@@ -1138,6 +1112,16 @@ $$S: R_1(X), R_3(X), W_1(X), R_2(X), W_3(X)$$
    - $W_1(X)$ before $R_2(X) \implies T_1 \to T_2$
    - $W_1(X)$ before $W_3(X) \implies T_1 \to T_3$
 2. Edges: $T_3 \to T_1$ and $T_1 \to T_3$.
+
+**Precedence Graph**:
+```mermaid
+flowchart LR
+    T1((T1)) -->|"W1(X) before R2(X)"| T2((T2))
+    T1 -->|"W1(X) before W3(X)"| T3((T3))
+    T3 -->|"R3(X) before W1(X)"| T1
+    classDef cycleNode fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    class T1,T3 cycleNode;
+```
 3. Cycle detected: $T_1 \rightleftharpoons T_3$.
 4. **Not conflict serializable**.
 
@@ -1151,17 +1135,10 @@ Locks control concurrent access to shared data items.
 - **Shared Lock ($S$)**: Read-only lock. Multiple transactions can hold $S$-locks on the same item simultaneously.
 - **Exclusive Lock ($X$)**: Read-and-write lock. Only one transaction can hold an $X$-lock on an item, and no other transaction can hold any lock on that item.
 
-```
-                  +--------------------------------+
-                  |         LOCK COMPATIBILITY     |
-                  +---------------+--------+-------+
-                  | Requested \ Held |   S    |   X   |
-                  +---------------+--------+-------+
-                  |       S       |  True  | False |
-                  +---------------+--------+-------+
-                  |       X       | False  | False |
-                  +---------------+--------+-------+
-```
+| Requested \ Held | Shared ($S$) | Exclusive ($X$) |
+| :---: | :---: | :---: |
+| **Shared ($S$)** | **True** (Compatible) | **False** (Conflict) |
+| **Exclusive ($X$)** | **False** (Conflict) | **False** (Conflict) |
 
 ---
 
@@ -1181,45 +1158,35 @@ Locks control concurrent access to shared data items.
 - **Lock Point**: The precise point in time when a transaction acquires its final lock (the end of its growing phase).
   - *Serializability Theorem*: The serializability order of transactions under 2PL is strictly determined by their **lock points**!
 
+```mermaid
+graph LR
+    subgraph Two_Phase_Locking ["Two-Phase Locking (2PL) Execution Lifecycle"]
+        direction TB
+        A["<b>Growing Phase</b><br>(Acquiring Locks, No Releases)"] --> B["<b>LOCK POINT</b><br>(Maximum Locks Held)"]
+        B --> C["<b>Shrinking Phase</b><br>(Releasing Locks, No New Acquisitions)"]
+    end
 ```
-    Number of
-    Locks Held
-        ^
-        |           /\  <--- LOCK POINT
-        |          /  \
-        |         /    \
-        |  Growing|    |Shrinking
-        |  Phase  |    |Phase
-        |  (Locks |    |(Locks
-        | acquired|    |released)
-        +---------+----+-----------> Time
+
+```
+  Locks Held
+      ▲
+      │             ▲  [ LOCK POINT: Final Lock Acquired ]
+      │            /       │           /         │          /           │  GROWING ╱       ╲ SHRINKING
+      │   PHASE ╱         ╲  PHASE
+      │        ╱           ╲
+      └───────┴─────────────┴──────────► Time
 ```
 
 ---
 
 ### 3. Variants of Two-Phase Locking
 
-```
-+-------------------+---------------------------------------------+------------------------------------+
-| 2PL Variant       | Lock Release Rules                          | Properties & Guarantees            |
-+-------------------+---------------------------------------------+------------------------------------+
-| **Basic 2PL**     | Release can begin at any time in shrinking  | - Guaranteed Conflict Serializable |
-|                   | phase.                                      | - Cascading rollbacks possible     |
-|                   |                                             | - Deadlocks possible               |
-+-------------------+---------------------------------------------+------------------------------------+
-| **Strict 2PL**    | All **Exclusive ($X$) locks** must be held  | - Guaranteed Conflict Serializable |
-|                   | until the transaction commits or aborts.    | - **Guaranteed Cascadeless**       |
-|                   | Shared ($S$) locks released in shrinking.   | - Deadlocks still possible         |
-+-------------------+---------------------------------------------+------------------------------------+
-| **Rigorous 2PL**  | **ALL locks ($S$ and $X$)** must be held    | - Guaranteed Conflict Serializable |
-|                   | until transaction commits or aborts.        | - **Strict & Cascadeless**         |
-|                   | (No shrinking phase prior to commit).       | - Serial order = Commit order      |
-+-------------------+---------------------------------------------+------------------------------------+
-| **Conservative**  | Transaction must pre-declare and acquire    | - Guaranteed Conflict Serializable |
-| **(Static) 2PL**  | **ALL required locks before execution**.    | - **DEADLOCK-FREE**                |
-|                   | If any unavailable, none are acquired.      | - High starvation risk; impractical|
-+-------------------+---------------------------------------------+------------------------------------+
-```
+| 2PL Variant | Lock Release Rules | Properties & Guarantees |
+| :--- | :--- | :--- |
+| **Basic 2PL** | Locks may be released gradually at any point during shrinking phase. | • Guaranteed Conflict Serializable<br>• Cascading rollbacks possible<br>• Deadlocks possible |
+| **Strict 2PL** | All **Exclusive ($X$) locks** must be held until transaction commits or aborts. Shared ($S$) locks may be released earlier. | • Guaranteed Conflict Serializable<br>• **Guarantees Cascadeless / Strict recovery**<br>• Deadlocks still possible |
+| **Rigorous 2PL** | **ALL locks** ($S$ and $X$) must be held until commit or abort. Shrinking phase collapses into the single commit point. | • Guaranteed Conflict Serializable<br>• **Schedules are strictly serializable** (serialization order matches commit order)<br>• Most widely implemented in enterprise DBMS |
+| **Conservative 2PL** | Transaction must declare and acquire **all needed locks before beginning execution**. If any lock unavailable, it waits without holding any locks. | • **Completely Deadlock-Free**<br>• Impractical in general OLTP (read/write sets often not known in advance) |
 
 ---
 
@@ -1230,22 +1197,11 @@ In a real database, locking at a single granularity (e.g., locking only whole ta
 - Small granularity (single row): High concurrency, but huge lock table memory overhead.
 
 ### 1. Granularity Hierarchy Tree
-```
-                     +------------------+
-                     |  Database (DB)   |
-                     +--------+---------+
-                              |
-                     +--------v---------+
-                     |   Table / File   |
-                     +--------+---------+
-                              |
-                     +--------v---------+
-                     |  Page / Block    |
-                     +--------+---------+
-                              |
-                     +--------v---------+
-                     |  Record / Tuple  |
-                     +------------------+
+```mermaid
+graph TD
+    DB["Database (DB)"] --> Table["Table / File"]
+    Table --> Page["Page / Block"]
+    Page --> Record["Record / Tuple"]
 ```
 
 ### 2. Intention Lock Modes
@@ -1255,17 +1211,13 @@ To allow locking at fine levels without forcing ancestor searches through thousa
 - **Shared Intention Exclusive ($SIX$)**: The subtree rooted at this node is locked explicitly in shared mode, AND explicit locking is being done at lower levels in exclusive mode ($SIX = S + IX$).
 
 ### 3. Complete 5x5 Compatibility Matrix
-```
-+--------------------+--------+--------+--------+--------+--------+
-| Requested \ Held   |   IS   |   IX   |   S    |  SIX   |   X    |
-+--------------------+--------+--------+--------+--------+--------+
-| **IS**             |  True  |  True  |  True  |  True  | False  |
-| **IX**             |  True  |  True  | False  | False  | False  |
-| **S**              |  True  | False  |  True  | False  | False  |
-| **SIX**            |  True  | False  | False  | False  | False  |
-| **X**              | False  | False  | False  | False  | False  |
-+--------------------+--------+--------+--------+--------+--------+
-```
+| Requested \ Held | IS | IX | S | SIX | X |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **IS** | **True** | **True** | **True** | **True** | False |
+| **IX** | **True** | **True** | False | False | False |
+| **S** | **True** | False | **True** | False | False |
+| **SIX** | **True** | False | False | False | False |
+| **X** | False | False | False | False | False |
 
 ### 4. MGL Locking Rules
 1. **Acquisition (Root to Leaf)**: To lock any node, the transaction must traverse from the root downward, acquiring appropriate intention locks ($IS$ or $IX$) on all ancestor nodes before locking the target node.
@@ -1309,19 +1261,10 @@ Transactions are assigned unique timestamps based on start time: $TS(T_i)$.
 
 Suppose transaction $T_i$ requests a lock held by transaction $T_j$:
 
-```
-+------------------+----------------------------------+------------------------------------+
-| Protocol         | Old requests from Young          | Young requests from Old            |
-|                  | ($TS(T_i) < TS(T_j)$)            | ($TS(T_i) > TS(T_j)$)              |
-+------------------+----------------------------------+------------------------------------+
-| **Wait-Die**     | $T_i$ **WAITS**                  | $T_i$ **DIES** (Aborts & restarts  |
-| (Non-preemptive) | (Old is allowed to wait)         | with original timestamp)           |
-+------------------+----------------------------------+------------------------------------+
-| **Wound-Wait**   | $T_i$ **WOUNDS** $T_j$           | $T_i$ **WAITS**                    |
-| (Preemptive)     | ($T_j$ preempted/aborts & locks  | (Young is allowed to wait)         |
-|                  | surrendered to $T_i$)            |                                    |
-+------------------+----------------------------------+------------------------------------+
-```
+| Protocol | Old requests from Young ($TS(T_i) < TS(T_j)$) | Young requests from Old ($TS(T_i) > TS(T_j)$) | Strategy Type |
+| :--- | :--- | :--- | :--- |
+| **Wait-Die** | $T_i$ **WAITS** (Old is allowed to wait for Young) | $T_i$ **DIES** ($T_i$ aborts & restarts with original timestamp) | **Non-preemptive** (holding transaction is never aborted) |
+| **Wound-Wait** | $T_i$ **WOUNDS** $T_j$ ($T_j$ is preempted/aborted; lock granted to $T_i$) | $T_i$ **WAITS** (Young is allowed to wait for Old) | **Preemptive** (holding transaction can be aborted by an older requester) |
 
 - **Mnemonic Rule**:
   - In **Wait-Die**: "Old Waits, Young Dies".
@@ -1395,17 +1338,12 @@ Each write creates a new physical version of data item $Q_k$ with timestamp $W\t
 - A read operation always reads the latest version of data committed prior to the reading transaction's snapshot.
 
 ### ANSI SQL Isolation Levels vs Anomalies
-```
-+--------------------+------------+-------------------+--------------+
-| Isolation Level    | Dirty Read | Unrepeatable Read | Phantom Read |
-+--------------------+------------+-------------------+--------------+
-| **READ UNCOMMITTED**| Possible  | Possible          | Possible     |
-| **READ COMMITTED**  | Prevented  | Possible          | Possible     |
-| **REPEATABLE READ** | Prevented  | Prevented         | Possible*    |
-| **SERIALIZABLE**    | Prevented  | Prevented         | Prevented    |
-+--------------------+------------+-------------------+--------------+
-(*Note: In MySQL InnoDB, Next-Key Locking prevents Phantom Reads even in REPEATABLE READ!)
-```
+| Isolation Level | Dirty Read | Non-Repeatable Read | Phantom Read | Mechanism Employed |
+| :--- | :---: | :---: | :---: | :--- |
+| **Read Uncommitted** | Possible | Possible | Possible | Read without locks; write with exclusive locks |
+| **Read Committed** | **Prevented** | Possible | Possible | Short-duration shared locks on reads; long exclusive locks on writes (or MVCC snapshot) |
+| **Repeatable Read** | **Prevented** | **Prevented** | Possible | Long-duration shared & exclusive locks on all accessed rows |
+| **Serializable** | **Prevented** | **Prevented** | **Prevented** | Rigorous 2PL + Predicate / Index Gap Locks (or Serializable Snapshot Isolation / SSI) |
 
 ---
 
@@ -1675,45 +1613,18 @@ Now, we evaluate the three Write operations:
 
 An **index** is an auxiliary data structure designed to minimize disk block accesses during query evaluation.
 
-```
-+--------------------+--------------------------------+--------------------------------+
-| Characteristic     | Dense Index                    | Sparse Index                   |
-+--------------------+--------------------------------+--------------------------------+
-| **Entry Count**    | An index record appears for    | An index record appears for    |
-|                    | **every single search key**    | **only some search keys**      |
-|                    | value in data file.            | (typically one per block).     |
-+--------------------+--------------------------------+--------------------------------+
-| **Storage Space**  | Larger index file size.        | Much smaller index file size;  |
-|                    |                                | fits more easily in RAM.       |
-+--------------------+--------------------------------+--------------------------------+
-| **File Ordering**  | Can be built on ordered OR     | **MUST be built on an ordered  |
-|                    | unordered data files.          | data file!**                   |
-+--------------------+--------------------------------+--------------------------------+
-| **Lookup Time**    | Direct pointer to tuple block. | Locates candidate block; must  |
-|                    |                                | scan linearly inside block.    |
-+--------------------+--------------------------------+--------------------------------+
-```
+| Characteristic | Dense Index | Sparse Index |
+| :--- | :--- | :--- |
+| **Index Entries** | An index entry appears for **every search-key value** (every record) in the file. | An index entry appears for only **some** search-key values (typically one per data block). |
+| **Space Overhead** | Larger index size; requires more memory and disk blocks. | Much smaller index size; easily fits in main memory buffer. |
+| **Lookup Speed** | Faster direct location of the target record pointer. | Slightly slower: must locate block pointer, then scan the block sequentially. |
+| **Applicability** | Can be created on ordered or unordered files (Mandatory for secondary indices). | **Can ONLY be created if the data file is physically sorted** on the search key! |
 
-```
-+------------------------+-------------------------------------------------------------+
-| Index Type             | Formal Definition & Key Properties                          |
-+------------------------+-------------------------------------------------------------+
-| **Primary Index**      | Created on the **ordering key attribute** (Primary Key) of  |
-|                        | an ordered data file. Can be dense or sparse. Only ONE      |
-|                        | primary index can exist per table.                          |
-+------------------------+-------------------------------------------------------------+
-| **Secondary Index**    | Created on an **unordered attribute** (candidate key or     |
-|                        | non-key). **MUST BE DENSE** because records with adjacent   |
-|                        | search keys are scattered across different blocks on disk!  |
-|                        | Points to tuples or to an intermediate bucket of pointers.  |
-+------------------------+-------------------------------------------------------------+
-| **Clustering Index**   | Created on the **ordering non-key attribute** of a sorted   |
-|                        | data file (where multiple records share the same value).    |
-+------------------------+-------------------------------------------------------------+
-| **Multilevel Index**   | When the primary index itself is too large to fit in memory,|
-|                        | a sparse outer index is built over the primary index blocks.|
-+------------------------+-------------------------------------------------------------+
-```
+| Index Type | Formal Definition & Key Properties | Ordering Requirement | Density |
+| :--- | :--- | :--- | :--- |
+| **Primary Index** | Created on the **ordering key attribute** (Primary Key) of an ordered data file. Only ONE primary index can exist per table. | Data file is physically sorted on search key. | Can be **Dense or Sparse** (typically Sparse: 1 entry per block). |
+| **Secondary Index** | Created on an **unordered attribute** (candidate key or non-key). Points to tuples or intermediate pointer buckets. Multiple secondary indices allowed. | Data file is NOT sorted on search key. | **MUST BE DENSE** (records scattered across blocks). |
+| **Clustering Index** | Created on the **ordering non-key attribute** of a sorted data file (where multiple records share the same search key value). | Data file is physically sorted on search key. | Typically **Sparse** (1 entry per distinct search-key value, pointing to first block). |
 
 ---
 
@@ -1870,31 +1781,14 @@ Total records = 100,000.
 
 ## 6.6 Exam Theory: Primary vs Secondary Indices (Endsem Q6(e))
 
-```
-+---------------------------------------------------------------------------------------------------+
-|                                  PRIMARY VS SECONDARY INDICES                                     |
-+------------------------------+----------------------------------+---------------------------------+
-| Aspect                       | Primary Index                    | Secondary Index                 |
-+------------------------------+----------------------------------+---------------------------------+
-| **Ordering of Data File**    | Data file is physically sorted   | Data file is NOT sorted on the  |
-|                              | on the search key attribute.     | search key attribute.           |
-+------------------------------+----------------------------------+---------------------------------+
-| **Key Type**                 | Defined on the Primary Key.      | Defined on a Candidate Key or   |
-|                              |                                  | a Non-Key attribute.            |
-+------------------------------+----------------------------------+---------------------------------+
-| **Dense vs Sparse**          | Can be **Sparse** (one index     | **MUST BE DENSE** (an entry for |
-|                              | entry per data block) or Dense.  | every single tuple).            |
-+------------------------------+----------------------------------+---------------------------------+
-| **Number per Table**         | **Only ONE** primary index can   | **Multiple** secondary indices  |
-|                              | exist per table.                 | can be created on a table.      |
-+------------------------------+----------------------------------+---------------------------------+
-| **Storage Overhead**         | Very low (if sparse).            | High (stores pointer for every  |
-|                              |                                  | tuple).                         |
-+------------------------------+----------------------------------+---------------------------------+
-| **Range Queries**            | Extremely efficient (consecutive | Inefficient (scattered blocks   |
-|                              | records reside in same block).   | cause high I/O).                |
-+------------------------------+----------------------------------+---------------------------------+
-```
+| Aspect | Primary Index | Secondary Index |
+| :--- | :--- | :--- |
+| **Ordering of Data File** | Data file is physically sorted on the search key attribute. | Data file is **NOT sorted** on the search key attribute. |
+| **Key Type** | Defined on the Primary Key. | Defined on a Candidate Key or a Non-Key attribute. |
+| **Dense vs Sparse** | Can be **Sparse** (one index entry per data block) or Dense. | **MUST BE DENSE** (an entry for every single tuple). |
+| **Number per Table** | **Only ONE** primary index can exist per table. | **Multiple** secondary indices can exist on the same table. |
+| **Pointer Target** | Points to data blocks (if sparse) or records (if dense). | Points directly to record ID/pointer, or to an overflow pointer bucket. |
+| **I/O Cost on Search** | Minimal: $\lceil \log_2(\text{blocks}) \rceil$ or B+ tree height. | B+ tree height + random I/O per matching record. |
 
 ### Architectural Diagram
 ```
@@ -1931,25 +1825,15 @@ Index Block:
 
 Query processing translates a high-level declarative query (e.g., SQL) into an efficient low-level procedural execution plan.
 
-```
-       +----------------------------+
-       |         SQL Query          |
-       +--------------+-------------+
-                      |
-                      v  1. Parsing and Translation
-       +--------------+-------------+
-       | Relational Algebra Expr.   |
-       +--------------+-------------+
-                      |
-                      v  2. Query Optimizer (Heuristic + Cost-Based)
-       +--------------+-------------+
-       |   Execution Plan (Tree)    |
-       +--------------+-------------+
-                      |
-                      v  3. Evaluation Engine
-       +--------------+-------------+
-       |       Query Output         |
-       +----------------------------+
+```mermaid
+flowchart TD
+    SQL["SQL Query"] --> Parser["1. Parser & Translator<br>(Syntax check, catalog verification, RA translation)"]
+    Parser --> RA["Relational Algebra Expression Tree"]
+    RA --> Optimizer["2. Query Optimizer<br>(Heuristic rewrite + cost-based join ordering)"]
+    Catalog[("System Catalog<br>Table metadata, cardinalities, indices")] -.-> Optimizer
+    Optimizer --> Plan["Optimal Execution Plan Tree"]
+    Plan --> Engine["3. Evaluation Engine<br>(Buffer manager, execution operators)"]
+    Engine --> Output["Query Result / Output"]
 ```
 
 1. **Parsing and Translation**: Checks SQL syntax, verifies table/column names against the system catalog, and translates the SQL query into an initial relational algebra expression tree.
@@ -2015,30 +1899,24 @@ Two relational algebra expressions are **equivalent** if they generate the exact
 - **Initial SQL / Unoptimized Expression**:
   $$\pi_{\text{name}, \text{title}}\Big( \sigma_{\text{dept\_name} = \text{'Music'}}(\text{instructor} \bowtie \text{teaches} \bowtie \text{course}) \Big)$$
 
-```
-UNOPTIMIZED TREE:
-                 pi(name, title)
-                        |
-            sigma(dept_name = 'Music')
-                        |
-                     join
-                    /    \
-                 join    course
-                /    \
-        instructor  teaches
-
-OPTIMIZED TREE (Pushing Selection Down):
-                 pi(name, title)
-                        |
-                     join
-                    /    \
-                 join    course
-                /    \
-             sigma   teaches
-               |
-          dept_name = 'Music'
-               |
-          instructor
+```mermaid
+flowchart TD
+    subgraph Unoptimized ["Unoptimized Query Tree"]
+        U_Pi["π name, title"] --> U_Sigma["σ dept_name = 'Music'"]
+        U_Sigma --> U_J2["⋈"]
+        U_J2 --> U_J1["⋈"]
+        U_J2 --> U_Course["course"]
+        U_J1 --> U_Inst["instructor"]
+        U_J1 --> U_Teach["teaches"]
+    end
+    subgraph Optimized ["Optimized Tree (Selection Pushed Down)"]
+        O_Pi["π name, title"] --> O_J2["⋈"]
+        O_J2 --> O_J1["⋈"]
+        O_J2 --> O_Course["course"]
+        O_J1 --> O_Sigma["σ dept_name = 'Music'"]
+        O_J1 --> O_Teach["teaches"]
+        O_Sigma --> O_Inst["instructor"]
+    end
 ```
 
 - **Benefit**: Instead of joining all thousands of instructors across the university and then discarding non-Music records, the selection `dept_name = 'Music'` executes first on the small `instructor` table, filtering it down to only Music faculty before evaluating the joins!
@@ -2165,37 +2043,18 @@ Data Definition Language statements used to build, alter, and destroy database s
 
 ## 8.2 Fast Revision Formula & Rule Cheat-Sheet
 
-```
-+-------------------------------------------------------------------------------------------------------+
-|                                  FAST REVISION FORMULA CHEAT-SHEET                                    |
-+------------------------------------+------------------------------------------------------------------+
-| Concept                            | Core Formula / Operational Rule                                  |
-+------------------------------------+------------------------------------------------------------------+
-| **Internal Node Order ($p$)**      | $p \cdot P_{block} + (p - 1) \cdot K \le B$                      |
-|                                    | $p = \lfloor (B + K) / (P_{block} + K) \rfloor$                  |
-+------------------------------------+------------------------------------------------------------------+
-| **Leaf Node Capacity ($p_{leaf}$)**| $p_{leaf} \cdot (K + P_{rec}) + P_{block} \le B$                 |
-|                                    | $p_{leaf} = \lfloor (B - P_{block}) / (K + P_{rec}) \rfloor$     |
-+------------------------------------+------------------------------------------------------------------+
-| **Binary Lossless Decomposition**  | $(R_1 \cap R_2) \to R_1 \in F^+$ OR $(R_1 \cap R_2) \to R_2 \in F^+$ |
-+------------------------------------+------------------------------------------------------------------+
-| **Wait-Die Rule**                  | Old requests Young $\to$ **WAITS**; Young requests Old $\to$ **DIES**  |
-+------------------------------------+------------------------------------------------------------------+
-| **Wound-Wait Rule**                | Old requests Young $\to$ **WOUNDS**; Young requests Old $\to$ **WAITS**|
-+------------------------------------+------------------------------------------------------------------+
-| **TSO Read Rule**                  | If $TS(T) < W\text{-TS}(Q) \implies$ Abort; Else allow & update  |
-|                                    | $R\text{-TS}(Q) = \max(R\text{-TS}(Q), TS(T))$.                  |
-+------------------------------------+------------------------------------------------------------------+
-| **TSO Write Rule**                 | If $TS(T) < R\text{-TS}(Q)$ OR $TS(T) < W\text{-TS}(Q) \implies$ |
-|                                    | Abort; Else allow & update $W\text{-TS}(Q) = TS(T)$.             |
-+------------------------------------+------------------------------------------------------------------+
-| **Thomas Write Rule**              | If $TS(T) < W\text{-TS}(Q) \implies$ **IGNORE (SKIP)** write!    |
-+------------------------------------+------------------------------------------------------------------+
-| **2PL Serial Order**               | Determined strictly by the transaction's **Lock Point**.         |
-+------------------------------------+------------------------------------------------------------------+
-| **Extraneous LHS Attribute**       | In $XY \to Z$, $Y$ is extraneous on LHS iff $Z \in X^+$.         |
-+------------------------------------+------------------------------------------------------------------+
-```
+| Concept | Core Formula / Operational Rule |
+| :--- | :--- |
+| **Internal Node Order ($p$)** | $p \cdot P_{\text{block}} + (p - 1) \cdot K \le B \implies p = \left\lfloor \frac{B + K}{P_{\text{block}} + K} \right\rfloor$ |
+| **Leaf Node Capacity ($p_{\text{leaf}}$)** | $p_{\text{leaf}} \cdot (K + P_{\text{rec}}) + P_{\text{block}} \le B \implies p_{\text{leaf}} = \left\lfloor \frac{B - P_{\text{block}}}{K + P_{\text{rec}}} \right\rfloor$ |
+| **Binary Lossless Decomposition** | $(R_1 \cap R_2) \to R_1 \in F^+ \quad \text{OR} \quad (R_1 \cap R_2) \to R_2 \in F^+$ |
+| **Wait-Die Rule** | Old requests Young $\to$ **WAITS**; Young requests Old $\to$ **DIES** (Non-preemptive) |
+| **Wound-Wait Rule** | Old requests Young $\to$ **WOUNDS** (preempts); Young requests Old $\to$ **WAITS** |
+| **TSO Read Rule** | If $TS(T) < W\text{-TS}(Q) \implies$ **ABORT** $T$; Else allow read & set $R\text{-TS}(Q) = \max(R\text{-TS}(Q), TS(T))$ |
+| **TSO Write Rule** | If $TS(T) < R\text{-TS}(Q)$ OR $TS(T) < W\text{-TS}(Q) \implies$ **ABORT** $T$; Else allow write & set $W\text{-TS}(Q) = TS(T)$ |
+| **Thomas Write Rule** | If $TS(T) < W\text{-TS}(Q) \implies$ **IGNORE (SKIP)** write! (Do not abort; write is obsolete) |
+| **2PL Serial Order** | Determined strictly by the transaction's **Lock Point** (end of growing phase) |
+| **Extraneous LHS Attribute** | In $XY \to Z$, $Y$ is extraneous on LHS iff $Z \in X^+$ under $F$ |
 
 
 ---
@@ -2225,7 +2084,7 @@ F = { AB → C,  C → D,  D → E,  E → A }
 
 > B must be in every candidate key. Start with B.
 
-**Step 2 — B⁺**
+**Step 2 — $B^+$**
 ```
 Start: {B}
 AB → C  — need A. Not yet.
@@ -2233,43 +2092,43 @@ No FD fires with just B alone.
 ```
 B alone → {B}. B cannot determine all attributes → B is not a key alone.
 
-**Step 3 — Try BA⁺**
+**Step 3 — Try B$A^+$**
 ```
 Start: {A, B}
 AB → C  → add C  → {A, B, C}
 C  → D  → add D  → {A, B, C, D}
 D  → E  → add E  → {A, B, C, D, E}  ✓ Full set!
 ```
-AB⁺ = ABCDE → **AB is a superkey**.
+A$B^+$ = ABCDE → **AB is a superkey**.
 
-Is AB minimal? Remove A: B⁺ = {B} ≠ ABCDE. Remove B: A⁺ = {A, E, D, C, ...}
+Is AB minimal? Remove A: $B^+$ = {B} ≠ ABCDE. Remove B: $A^+$ = {A, E, D, C, ...}
 
-**A⁺ from just A:**
+**$A^+$ from just A:**
 ```
 E → A fires? No, need E first.
 D → E  — need D.
 C → D  — need C.
 No FD fires with just A.
 ```
-A⁺ = {A} ≠ ABCDE.
+$A^+$ = {A} ≠ ABCDE.
 
 ∴ Neither A nor B alone determines all → **AB is a candidate key (minimal superkey)**.
 
 **Step 4 — Any other candidate keys?**  
-Try CB: B⁺ = {B}. CB⁺:
+Try CB: $B^+$ = {B}. C$B^+$:
 ```
 {C, B} → C→D → {B,C,D} → D→E → {B,C,D,E} → E→A → {A,B,C,D,E} ✓
 ```
-CB is a superkey. Is it minimal? Remove B: C⁺ = {C,D,E,A} ≠ ABCDE. Remove C: B⁺={B} ≠ ABCDE.  
+CB is a superkey. Is it minimal? Remove B: $C^+$ = {C,D,E,A} ≠ ABCDE. Remove C: $B^+$={B} ≠ ABCDE.  
 ∴ **BC is a candidate key**.
 
-Similarly DB (try yourself): DB⁺:
+Similarly DB (try yourself): D$B^+$:
 ```
 {D,B} → D→E → {B,D,E} → E→A → {A,B,D,E} → AB→C → {A,B,C,D,E} ✓
 ```
-DB minimal? B⁺={B}≠all, D⁺={D,E,A}≠all → **BD is a candidate key**.
+DB minimal? $B^+$={B}≠all, $D^+$={D,E,A}≠all → **BD is a candidate key**.
 
-Similarly EB: EB⁺ → E→A → {A,B,E} → AB→C → {A,B,C,E} → C→D → ABCDE ✓, minimal → **BE is a candidate key**.
+Similarly EB: E$B^+$ → E→A → {A,B,E} → AB→C → {A,B,C,E} → C→D → ABCDE ✓, minimal → **BE is a candidate key**.
 
 **Answer**: Candidate keys = **{AB, BC, BD, BE}**
 
@@ -2291,36 +2150,36 @@ F = { A → B,  B → A,  C → D,  D → C,  AC → BD }
 
 Since no attribute is "pure LHS", every attribute is a potential key ingredient.
 
-**Step 2 — Try A⁺**:
+**Step 2 — Try $A^+$**:
 ```
 {A} → A→B → {A,B}
 B→A (already have A, B).
 No more fire.
 ```
-A⁺ = {A, B} ≠ ABCD. Not a key.
+$A^+$ = {A, B} ≠ ABCD. Not a key.
 
-**Step 3 — Try C⁺**:
+**Step 3 — Try $C^+$**:
 ```
 {C} → C→D → {C,D}
 D→C (already have).
 ```
-C⁺ = {C, D} ≠ ABCD. Not a key.
+$C^+$ = {C, D} ≠ ABCD. Not a key.
 
-**Step 4 — Try AC⁺**:
+**Step 4 — Try A$C^+$**:
 ```
 {A,C} → A→B → {A,B,C} → C→D → {A,B,C,D} ✓
 ```
-AC⁺ = ABCD → AC is a superkey.  
-Minimal? A⁺={A,B}≠all, C⁺={C,D}≠all → **AC is a candidate key**.
+A$C^+$ = ABCD → AC is a superkey.  
+Minimal? $A^+$={A,B}≠all, $C^+$={C,D}≠all → **AC is a candidate key**.
 
-**Step 5 — Try AD⁺**:
+**Step 5 — Try A$D^+$**:
 ```
 {A,D} → A→B → {A,B,D} → D→C → {A,B,C,D} ✓
 ```
-AD minimal? A⁺={A,B}≠all, D⁺={C,D}≠all → **AD is a candidate key**.
+AD minimal? $A^+$={A,B}≠all, $D^+$={C,D}≠all → **AD is a candidate key**.
 
-**Step 6 — Try BC⁺, BD⁺** (by symmetry of A↔B, C↔D):  
-BC⁺ = ABCD ✓, BD⁺ = ABCD ✓ → **BC and BD are candidate keys**.
+**Step 6 — Try B$C^+$, B$D^+$** (by symmetry of A↔B, C↔D):  
+B$C^+$ = ABCD ✓, B$D^+$ = ABCD ✓ → **BC and BD are candidate keys**.
 
 **Answer**: Candidate keys = **{AC, AD, BC, BD}**
 
@@ -2350,12 +2209,12 @@ F = { EP → H,  D → B,  P → N,  E → D }
 
 Pure LHS = {E, P} → must be in every CK. Pure RHS = {H, B, N} → cannot be in any CK.
 
-**Step 2 — EP⁺**:
+**Step 2 — $(EP)^+$**:
 ```
 {E,P} → EP→H → {E,P,H} → E→D → {D,E,H,P} → D→B → {B,D,E,H,P} → P→N → {B,D,E,H,N,P} ✓
 ```
-EP⁺ = EDPHNB = all 6 attributes → EP is a superkey.  
-Minimal? E alone: E⁺ = {E,D,B} ≠ all. P alone: P⁺ = {P,N} ≠ all.  
+$(EP)^+$ = EDPHNB = all 6 attributes → EP is a superkey.  
+Minimal? E alone: $E^+$ = {E,D,B} ≠ all. P alone: P⁺ = {P,N} ≠ all.  
 ∴ **EP is the only candidate key**.
 
 **Prime attributes**: {E, P}  
@@ -2383,11 +2242,11 @@ Attribute E appears on **neither** side of any FD → E must be in every candida
 
 **Step 1**: E is "neither" → always in CK. A is "pure LHS" (only LHS, never RHS) → also always in CK.
 
-**Step 2 — AE⁺**:
+**Step 2 — A$E^+$**:
 ```
 {A,E} → A→BC → {A,B,C,E} → C→D → {A,B,C,D,E} ✓
 ```
-AE is a superkey. Minimal? A⁺ = {A,B,C,D} ≠ all (missing E). E⁺ = {E} ≠ all.  
+AE is a superkey. Minimal? $A^+$ = {A,B,C,D} ≠ all (missing E). $E^+$ = {E} ≠ all.  
 ∴ **AE is the unique candidate key**.
 
 Prime: {A, E}. Non-prime: {B, C, D}.
@@ -2421,7 +2280,7 @@ F = { A→B, A→C, B→C, AB→C }
 **Step 2 — Remove LHS-Extraneous attributes**:
 
 For `AB→C`: Is A extraneous on LHS?  
-Compute B⁺ under F: {B} → B→C → {B,C}. Is C ∈ {B,C}? Yes.  
+Compute $B^+$ under F: {B} → B→C → {B,C}. Is C ∈ {B,C}? Yes.  
 ∴ A is extraneous in AB→C → Replace AB→C with **B→C**.
 
 Updated F:
@@ -2437,7 +2296,7 @@ F = { A→B, A→C, B→C }
 
 For `A→C`: Is C extraneous on RHS?  
 Remove C from RHS → `A→∅` (effectively remove FD). Can we still derive A→C from remaining F = {A→B, B→C}?  
-Compute A⁺ under {A→B, B→C}: A→B→C. Yes, A→C is derivable.  
+Compute $A^+$ under {A→B, B→C}: A→B→C. Yes, A→C is derivable.  
 ∴ C is extraneous in A→C → **Remove A→C**.
 
 Updated F:
@@ -2447,8 +2306,8 @@ F = { A→B, B→C }
 
 **Step 4 — Remove redundant FDs**:
 
-Is A→B redundant? Compute A⁺ under {B→C}: A⁺ = {A} ≠ includes B. No.  
-Is B→C redundant? Compute B⁺ under {A→B}: B⁺ = {B} ≠ includes C. No.
+Is A→B redundant? Compute $A^+$ under {B→C}: $A^+$ = {A} ≠ includes B. No.  
+Is B→C redundant? Compute $B^+$ under {A→B}: $B^+$ = {B} ≠ includes C. No.
 
 **Canonical Cover F_c = { A→B, B→C }**
 
@@ -2470,14 +2329,14 @@ F = { ABC→D, ABC→E, AB→D, B→C, D→E, A→B }
 ```
 
 **Step 2 — LHS Extraneous in ABC→D**:
-Is A extraneous? BC⁺ under F:
+Is A extraneous? B$C^+$ under F:
 ```
 {B,C} → B→C (already) → A→B? need A. No new attrs.
-BC⁺ = {B,C}. D ∉ BC⁺. A not extraneous.
+B$C^+$ = {B,C}. D ∉ B$C^+$. A not extraneous.
 ```
-Is B extraneous in ABC→D? AC⁺:
+Is B extraneous in ABC→D? A$C^+$:
 ```
-{A,C} → A→B → {A,B,C} → AB→D → {A,B,C,D}. D ∈ AC⁺. ✓
+{A,C} → A→B → {A,B,C} → AB→D → {A,B,C,D}. D ∈ A$C^+$. ✓
 ```
 B is extraneous in ABC→D → replace with **AC→D**.
 
@@ -2486,7 +2345,7 @@ Updated F:
 { AC→D, ABC→E, AB→D, B→C, D→E, A→B }
 ```
 
-Is C extraneous in AC→D? A⁺: {A}→A→B→{A,B}→AB→D→{A,B,D}. D ∈ A⁺. ✓  
+Is C extraneous in AC→D? $A^+$: {A}→A→B→{A,B}→AB→D→{A,B,D}. D ∈ $A^+$. ✓  
 C is extraneous in AC→D → replace with **A→D**.
 
 Updated F:
@@ -2495,13 +2354,13 @@ Updated F:
 ```
 
 **Check ABC→E for LHS extraneous**:  
-Remove A: BC⁺ = {B,C} (B→C already). E ∉ BC⁺. A not extraneous.  
-Remove B: AC⁺: A⁺ = {A,D,E,B} (A→D, D→E, A→B, A→D...). Let's compute carefully:
+Remove A: B$C^+$ = {B,C} (B→C already). E ∉ B$C^+$. A not extraneous.  
+Remove B: A$C^+$: $A^+$ = {A,D,E,B} (A→D, D→E, A→B, A→D...). Let's compute carefully:
 ```
-{A,C}: A→D→{A,C,D}, D→E→{A,C,D,E}, A→B→{A,B,C,D,E}. E ∈ AC⁺. ✓
+{A,C}: A→D→{A,C,D}, D→E→{A,C,D,E}, A→B→{A,B,C,D,E}. E ∈ A$C^+$. ✓
 ```
 B is extraneous in ABC→E → replace with **AC→E**.  
-Remove C: A⁺ = {A,D,E,B,C} (A→D, A→B, B→C, D→E). E ∈ A⁺. ✓  
+Remove C: $A^+$ = {A,D,E,B,C} (A→D, A→B, B→C, D→E). E ∈ $A^+$. ✓  
 C is extraneous in AC→E → replace with **A→E**.
 
 Updated F:
@@ -2511,17 +2370,17 @@ Updated F:
 
 **Step 3 — Remove Redundant FDs**:
 
-Is `AB→D` redundant? A⁺ under remaining = {A→D, A→E, B→C, D→E, A→B}:  
-A⁺: A→D, A→E, A→B, B→C → {A,B,C,D,E}. D ∈ A⁺. So A→D already derives AB→D. **Remove AB→D**.
+Is `AB→D` redundant? $A^+$ under remaining = {A→D, A→E, B→C, D→E, A→B}:  
+$A^+$: A→D, A→E, A→B, B→C → {A,B,C,D,E}. D ∈ $A^+$. So A→D already derives AB→D. **Remove AB→D**.
 
 Is `A→D` redundant? Can {A→E, B→C, D→E, A→B} derive A→D?  
-A⁺ under {A→E, B→C, D→E, A→B}: A→E, A→B, B→C → {A,B,C,E}. D ∉ → Not redundant.
+$A^+$ under {A→E, B→C, D→E, A→B}: A→E, A→B, B→C → {A,B,C,E}. D ∉ → Not redundant.
 
 Is `A→E` redundant? Can {A→D, B→C, D→E, A→B} derive A→E?  
 A→D→E. Yes! **Remove A→E**.
 
 Is `D→E` redundant? Can {A→D, B→C, A→B} derive D→E?  
-D⁺ = {D}. E ∉. Not redundant.
+$D^+$ = {D}. E ∉. Not redundant.
 
 Updated F:
 ```
@@ -2551,36 +2410,36 @@ Compute canonical cover and find all candidate keys.
 Step 1 — All RHS already singletons. No splitting needed.
 
 Step 2 — LHS extraneous in WX→Y:  
-Is W extraneous? X⁺ under F = {X}. Y ∉. No.  
-Is X extraneous? W⁺: W→X → {W,X} → WX→Y → {W,X,Y} → Y→W (already). W⁺ = {W,X,Y,Z}. Y ∈ W⁺. ✓  
+Is W extraneous? $X^+$ under F = {X}. Y ∉. No.  
+Is X extraneous? $W^+$: W→X → {W,X} → WX→Y → {W,X,Y} → Y→W (already). $W^+$ = {W,X,Y,Z}. Y ∈ $W^+$. ✓  
 X is extraneous in WX→Y → replace with **W→Y**.
 
 LHS extraneous in WX→Z:  
-Is W extraneous (now that W→Y exists)? X⁺ = {X}. Z ∉. No.  
-Is X extraneous? W⁺: W→X, W→Y, Y→W → {W,X,Y}, WX→Z → {W,X,Y,Z}. But we need to check WITHOUT WX→Z.  
-Under {W→Y, W→X, Y→W}: W⁺ = {W,X,Y}. Z ∉. So W alone can't get Z.  
-Hmm, need WX→Z. W⁺ under F\{WX→Z} = {W→Y, W→X, Y→W}: {W}→{W,X,Y} (W→X, W→Y, Y→W loop) = {W,X,Y}. Z ∉.  
+Is W extraneous (now that W→Y exists)? $X^+$ = {X}. Z ∉. No.  
+Is X extraneous? $W^+$: W→X, W→Y, Y→W → {W,X,Y}, WX→Z → {W,X,Y,Z}. But we need to check WITHOUT WX→Z.  
+Under {W→Y, W→X, Y→W}: $W^+$ = {W,X,Y}. Z ∉. So W alone can't get Z.  
+Hmm, need WX→Z. $W^+$ under F\{WX→Z} = {W→Y, W→X, Y→W}: {W}→{W,X,Y} (W→X, W→Y, Y→W loop) = {W,X,Y}. Z ∉.  
 So X not extraneous in WX→Z.
 
 Actually let's re-check: now WX→Y is replaced by W→Y.  
 Current F: {W→Y, WX→Z, W→X, Y→W}  
-Is X extraneous in WX→Z? W⁺ under {W→Y, W→X, Y→W} = {W,X,Y}. Z ∉ W⁺. X not extraneous.
+Is X extraneous in WX→Z? $W^+$ under {W→Y, W→X, Y→W} = {W,X,Y}. Z ∉ $W^+$. X not extraneous.
 
 Step 3 — Remove redundant FDs:  
 Is W→X redundant? Can {W→Y, WX→Z, Y→W} derive W→X?  
-W⁺ under {W→Y, WX→Z, Y→W}: W→Y→W (loop), Y→W. We get {W,Y}. X ∉. W→X not redundant.
+$W^+$ under {W→Y, WX→Z, Y→W}: W→Y→W (loop), Y→W. We get {W,Y}. X ∉. W→X not redundant.
 
 Is Y→W redundant? Can {W→Y, WX→Z, W→X} derive Y→W?  
-Y⁺ under {W→Y, WX→Z, W→X}: Y alone → nothing fires (Y is not on LHS of any remaining). {Y}. W ∉. Not redundant.
+$Y^+$ under {W→Y, WX→Z, W→X}: Y alone → nothing fires (Y is not on LHS of any remaining). {Y}. W ∉. Not redundant.
 
 **F_c = { W→Y, W→X, WX→Z, Y→W }**
 
 **Candidate Keys**: Let's compute.  
 Classify: Z is pure RHS → not in CK. W,X,Y are on both sides.  
-Try W⁺: W→Y, W→X, WX→Z → {W,X,Y,Z} = all. W is a CK!  
+Try $W^+$: W→Y, W→X, WX→Z → {W,X,Y,Z} = all. W is a CK!  
 Minimal? Just W → W alone. ✓ **W is a candidate key**.  
-Try Y⁺: Y→W → {Y,W} → W→X, W→Y → {W,X,Y} → WX→Z → {W,X,Y,Z} ✓. **Y is a candidate key**.  
-Any others? Try X: X⁺ = {X}. Z ∉, W ∉. No.  
+Try $Y^+$: Y→W → {Y,W} → W→X, W→Y → {W,X,Y} → WX→Z → {W,X,Y,Z} ✓. **Y is a candidate key**.  
+Any others? Try X: $X^+$ = {X}. Z ∉, W ∉. No.  
 **Candidate Keys = {W, Y}**. Prime: {W, Y}. Non-prime: {X, Z}.
 
 
@@ -2625,7 +2484,7 @@ F = { EP → Hr,   E → D,   D → H_d }
 ```
 
 **Step 1 — Find Candidate Key**:  
-E⁺ = {E, D, H_d}. P⁺ = {P}. EP⁺ = {E,P,Hr,D,H_d} = all. → **CK = {EP}**
+$E^+$ = {E, D, H_d}. P⁺ = {P}. $(EP)^+$ = {E,P,Hr,D,H_d} = all. → **CK = {EP}**
 
 **Step 2 — Check BCNF violations in WORK**:  
 - EP → Hr: EP is CK → ✓ (OK)
@@ -2645,8 +2504,8 @@ FDs projecting onto R1: E→D. CK of R1 = E (since E→D covers all). E is super
 **R2 = {E, P, H_d, Hr}**:  
 Project F onto R2 — which FDs hold in R2?  
 Compute closures of subsets of {E, P, H_d, Hr}:  
-- E⁺ in original F: {E, D, H_d} → Intersect with R2 = {E, H_d}. FD: E → H_d (holds in R2)  
-- EP⁺: all → {E,P,H_d,Hr}. FD: EP → H_d, Hr  
+- $E^+$ in original F: {E, D, H_d} → Intersect with R2 = {E, H_d}. FD: E → H_d (holds in R2)  
+- $(EP)^+$: all → {E,P,H_d,Hr}. FD: EP → H_d, Hr  
 - CK of R2: EP (since EP→Hr, E→H_d gives EP all attrs).
 
 **Check BCNF in R2**:  
@@ -2677,7 +2536,7 @@ R2b  = (E, P, Hr)     — Hours worked by employee on project
 
 **Lossless?** R2 ∩ R2a = {E}, and E→H_d holds in R2 → R2 ∩ R2a → R2a. ✓  
 R1 ∩ R2 = {E, P} ∩ ... Actually R1={E,D} ∩ R2={E,P,H_d,Hr} = {E}.  
-E⁺ = {E,D,H_d} in R1 → E → R1 (E is key of R1). ✓ Lossless join at each step.
+$E^+$ = {E,D,H_d} in R1 → E → R1 (E is key of R1). ✓ Lossless join at each step.
 
 **Dependency Preservation?**  
 - EP→Hr: preserved in R2b ✓  
@@ -2719,8 +2578,8 @@ F = { BM → D,   Br → C,   M → N,   B → Br }
 
 **Step 1 — Canonical Cover** (check if F is already minimal):
 - All RHS are singletons ✓
-- LHS extraneous? BM→D: M⁺ = {M,N}, D ∉. B⁺ = {B,Br,C}, D ∉. Neither extraneous.
-- Redundant FDs? B→Br: Remove it. B⁺ under {BM→D, Br→C, M→N} = {B}. Br ∉. Not redundant.
+- LHS extraneous? BM→D: M⁺ = {M,N}, D ∉. $B^+$ = {B,Br,C}, D ∉. Neither extraneous.
+- Redundant FDs? B→Br: Remove it. $B^+$ under {BM→D, Br→C, M→N} = {B}. Br ∉. Not redundant.
 
 **F_c = { BM→D, Br→C, M→N, B→Br }** (already canonical)
 
@@ -2733,7 +2592,7 @@ R4 = {B, Br}         from B→Br
 ```
 
 **Step 3 — Check for candidate key**:  
-CK of original R: BM⁺ = {B,M,D,Br,C,N} = all. CK = {BM}.  
+CK of original R: $(BM)^+$ = {B,M,D,Br,C,N} = all. CK = {BM}.  
 Does any Ri contain {B,M}? R1 = {B,M,D} ⊇ {B,M}. ✓ No need to add key relation.
 
 **Step 4 — Remove redundant**: Any Ri ⊆ Rj?  
@@ -2827,7 +2686,7 @@ R3 and R4 have D=a4 (distinguished). Set R1's D = a4, R2's D = a4.
 
 ### 3.W.1  What is a Multivalued Dependency?
 
-**Definition**: In relation R(X, Y, Z), **X ↠ Y** (X multidetermines Y) if:  
+**Definition**: In relation R(X, Y, Z), **$X \twoheadrightarrow Y$** (X multidetermines Y) if:  
 > For every pair of tuples t1 and t2 in R where t1[X] = t2[X], there exists a tuple t3 ∈ R such that:
 > - t3[X] = t1[X] = t2[X]
 > - t3[Y] = t1[Y]
@@ -2835,17 +2694,17 @@ R3 and R4 have D=a4 (distinguished). Set R1's D = a4, R2's D = a4.
 
 **Informal**: Given a value of X, the set of Y-values is **independent** of the set of Z-values.
 
-**Trivial MVD**: X ↠ Y is trivial if Y ⊆ X, or X ∪ Y = R.
+**Trivial MVD**: $X \twoheadrightarrow Y$ is trivial if Y ⊆ X, or X ∪ Y = R.
 
-**MVD ↔ FD**: Every FD X→Y is also an MVD X ↠ Y (but not vice versa).
+**MVD ↔ FD**: Every FD X→Y is also an MVD $X \twoheadrightarrow Y$ (but not vice versa).
 
-**Complementation Rule for MVD**: If X ↠ Y in R(X,Y,Z), then X ↠ Z (complementation). MVDs always come in pairs.
+**Complementation Rule for MVD**: If $X \twoheadrightarrow Y$ in R(X,Y,Z), then $X \twoheadrightarrow Z$ (complementation). MVDs always come in pairs.
 
 ---
 
 ### 3.W.2  Fourth Normal Form (4NF)
 
-**Definition**: Relation R (with FD set F and MVD set M) is in **4NF** if for every non-trivial MVD X ↠ Y in (F ∪ M)⁺:  
+**Definition**: Relation R (with FD set F and MVD set M) is in **4NF** if for every non-trivial MVD $X \twoheadrightarrow Y$ in (F ∪ M)⁺:  
 X is a **superkey** of R.
 
 > 4NF ⊂ BCNF: If R is in 4NF → R is in BCNF. (MVD → FD for trivial cases; non-trivial MVD is a stricter constraint.)
@@ -2866,13 +2725,13 @@ X is a **superkey** of R.
 
 **Observation**: For DBMS, every (Teacher, Textbook) combination appears. This is because:
 - Teachers for a course are **independent** of textbooks for that course.
-- **Course ↠ Teacher** (non-trivial MVD)
-- **Course ↠ Textbook** (non-trivial MVD, by complementation)
+- **$\text{Course} \twoheadrightarrow \text{Teacher}$** (non-trivial MVD)
+- **$\text{Course} \twoheadrightarrow \text{Textbook}$** (non-trivial MVD, by complementation)
 
 **Is CTB in BCNF?** The only FD might be trivial (if no functional dependency exists). The candidate key would be (Course, Teacher, Textbook) — the whole relation.  
 So technically, any FD is trivial → **BCNF is satisfied**. But there's redundancy!
 
-**4NF Violation**: Course ↠ Teacher, and Course is NOT a superkey of CTB (since the key is all three attributes). → **CTB violates 4NF**.
+**4NF Violation**: $\text{Course} \twoheadrightarrow \text{Teacher}$, and Course is NOT a superkey of CTB (since the key is all three attributes). → **CTB violates 4NF**.
 
 **4NF Decomposition**:
 ```
@@ -2898,14 +2757,14 @@ Both CT and CB are in 4NF (key = whole relation, so all MVDs are trivial). ✓
 Abbreviate: A, D, M, F
 
 **Given**: For each airline and destination, the set of meal types offered is independent of the flight codes.
-- **A ↠ M** given D? No — rephrase: **AD ↠ M** and **AD ↠ F** (non-trivial MVD).
+- **A ↠ M** given D? No — rephrase: **$AD \twoheadrightarrow M$** and **$AD \twoheadrightarrow F$** (non-trivial MVD).
 
 Actually let's model it as:  
-**MVD**: AD ↠ M (for each airline-destination pair, meal types are independent of flight codes)
+**MVD**: $AD \twoheadrightarrow M$ (for each airline-destination pair, meal types are independent of flight codes)
 
 **CK of FLIGHT**: {A, D, M, F} — all attributes (if no FD reduces it).
 
-**4NF violation**: AD ↠ M, but AD is not a superkey (key requires all 4 attrs). → **Violates 4NF**.
+**4NF violation**: $AD \twoheadrightarrow M$, but AD is not a superkey (key requires all 4 attrs). → **Violates 4NF**.
 
 **Decompose**:
 ```
@@ -2930,11 +2789,11 @@ F = { SC → G,   I → A,   C → I }
 **Step 1 — Find CK**:  
 S: pure LHS? No (not on RHS). C: Both. G,A: pure RHS. I: both.  
 S is on LHS of SC→G only. Actually A,G are pure RHS. S appears only on LHS → pure LHS.  
-Try SC⁺: SC→G → {S,C,G} → C→I → {S,C,G,I} → I→A → {S,C,G,I,A} ✓  
-SC⁺ = all. SC is superkey. Minimal? S⁺={S}, C⁺={C,I,A} ≠ all. **CK = {SC}**.
+Try S$C^+$: SC→G → {S,C,G} → C→I → {S,C,G,I} → I→A → {S,C,G,I,A} ✓  
+S$C^+$ = all. SC is superkey. Minimal? S⁺={S}, $C^+$={C,I,A} ≠ all. **CK = {SC}**.
 
 **Step 2 — Canonical Cover**:  
-Check LHS extraneous in SC→G: S⁺={S}, G∉. C⁺={C,I,A}, G∉. None extraneous. F already canonical.  
+Check LHS extraneous in SC→G: S⁺={S}, G∉. $C^+$={C,I,A}, G∉. None extraneous. F already canonical.  
 F_c = {SC→G, I→A, C→I}
 
 **Step 3 — NF Analysis**:  
@@ -3019,15 +2878,14 @@ Conflicts occur between operations on the **same data item** where **at least on
 | W2(B) ↔ R3(B) t3<t7 | R3 after W2 | T2 → T3 |
 
 **Step 2 — Draw Precedence Graph**:
-```
-     ┌───→ T2 ──→ T3
-     │      │
-T1 ←─┘      └──→ (T2→T3 already)
-│
-└─────────────────→ T3
-     ↑
-  T2 → T1 (edge from T2 to T1)
-  T1 → T2 (edge from T1 to T2)
+```mermaid
+flowchart LR
+    T1((T1)) -->|"R1(A) before W2(A)"| T2((T2))
+    T2 -->|"W2(A) before W1(A)<br>W2(B) before R1(B)"| T1
+    T2 -->|"W2(A) before R3(A)<br>W2(B) before R3(B)"| T3((T3))
+    T1 -->|"W1(A) before R3(A)"| T3
+    classDef cycleNode fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    class T1,T2 cycleNode;
 ```
 
 More clearly:
@@ -3087,12 +2945,12 @@ T4:           R(Z)               W(Z)
 **All edges**: T1→T2, T1→T3, T2→T3
 
 **Precedence Graph**:
-```
-T1 ──→ T2 ──→ T3
-│             ↑
-└─────────────┘
-
-T4 (isolated — no cross-transaction conflicts on Z)
+```mermaid
+flowchart LR
+    T1((T1)) -->|"W1(X) before R2(X)"| T2((T2))
+    T1 -->|"W1(X) before W3(X)"| T3((T3))
+    T2 -->|"R2(X) before W3(X)<br>W2(Y) before R3(Y)"| T3((T3))
+    T4((T4))
 ```
 
 **Cycle?** No cycle. The graph is a DAG. 
@@ -3127,7 +2985,16 @@ T3:                   W(A)
 - W2(A)→W3(A): **T2→T3**
 - R2(A)→W3(A): **T2→T3**
 
-**Edges**: T1→T2, T1→T3, T2→T3. No cycle. → **Conflict Serializable** (order T1,T2,T3).
+**Edges**: $T_1 \to T_2$, $T_1 \to T_3$, $T_2 \to T_3$.
+
+```mermaid
+flowchart LR
+    T1((T1)) -->|"W1(A) before R2(A), W2(A)"| T2((T2))
+    T1 -->|"W1(A) before W3(A)"| T3((T3))
+    T2 -->|"R2(A), W2(A) before W3(A)"| T3((T3))
+```
+
+**Cycle Check**: Acyclic DAG $\implies$ **Conflict Serializable** with unique topological sort order: $\mathbf{T_1 \to T_2 \to T_3}$.
 
 > Note: T3 performs a **blind write** (writes without reading A). Blind writes can enable view serializability in cases conflict serializability fails. Here, it was conflict serializable anyway.
 
@@ -3173,11 +3040,47 @@ T3:           W(A)
 S: W1(A), W2(A), W3(A) — all blind writes.  
 Conflict edges: T1→T2, T1→T3, T2→T3. No cycle → **conflict serializable** (T1,T2,T3). View serial too.
 
-Classic example requiring blind write for ONLY view serial:
+### The Definitive View-Serializable but NOT Conflict-Serializable Schedule
+
+Consider the following classic 3-transaction schedule on data item $A$ (from Silberschatz Chapter 14):
+
+$$S: R_1(A), \; W_2(A), \; W_1(A), \; W_3(A)$$
+
+| Step | Operation | Transaction | Notes |
+| :---: | :---: | :---: | :--- |
+| 1 | $R_1(A)$ | $T_1$ | Reads initial database value of $A$ |
+| 2 | $W_2(A)$ | $T_2$ | Blind write to $A$ |
+| 3 | $W_1(A)$ | $T_1$ | Overwrites $T_2$'s write |
+| 4 | $W_3(A)$ | $T_3$ | **Blind write** to $A$ (final write on $A$) |
+
+#### 1. Why it is NOT Conflict Serializable:
+- $R_1(A)$ precedes $W_2(A) \implies$ Directed edge **$T_1 \to T_2$**.
+- $W_2(A)$ precedes $W_1(A) \implies$ Directed edge **$T_2 \to T_1$**.
+
+```mermaid
+flowchart LR
+    T1((T1)) -->|"R1(A) before W2(A)"| T2((T2))
+    T2 -->|"W2(A) before W1(A)"| T1
+    T1 -->|"W1(A) before W3(A)"| T3((T3))
+    T2 -->|"W2(A) before W3(A)"| T3
+    classDef cycleNode fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    class T1,T2 cycleNode;
 ```
-S: R1(Q), W2(Q), W1(Q), W3(Q)
-```
-(See textbook §14.6 for this exact schedule — T3 does a blind write making it view serial to T1T2T3 or T2T1T3 depending on analysis.)
+
+Because of directed cycle $T_1 \rightleftharpoons T_2$, schedule $S$ is **NOT conflict serializable**!
+
+#### 2. Why it IS View Serializable to Serial Order $T_2 \to T_1 \to T_3$:
+Let us systematically test the 3 conditions of **View Equivalence** between concurrent schedule $S$ and serial schedule $S' = \langle T_2, T_1, T_3 \rangle$:
+1. **Initial Read**: In $S$, $T_1$ reads the initial database value of $A$ (before any write). In serial schedule $S'$, $T_2$ writes first, so $T_1$ would read $T_2$'s value! Mismatch on $T_2 \to T_1 \to T_3$.
+2. What about serial schedule $S'' = \langle T_1, T_2, T_3 \rangle$?
+   - **Initial Read**: In both $S$ and $S''$, $T_1$ reads the initial value of $A$. (Condition 1 satisfied $\checkmark$)
+   - **Read-From**: No transaction reads a value written by another transaction in either schedule. (Condition 2 vacuously satisfied $\checkmark$)
+   - **Final Write**: In $S$, the final write on $A$ is performed by $T_3$ (at step 4). In serial schedule $S'' = \langle T_1, T_2, T_3 \rangle$, $T_3$ executes last, so the final write is also performed by $T_3$! (Condition 3 satisfied $\checkmark$)
+
+**Conclusion**: Schedule $S$ is **View Equivalent** to serial schedule $\mathbf{T_1 \to T_2 \to T_3}$.  
+Therefore, $S$ is **View Serializable**, even though its precedence graph contains a cycle!
+
+> **Exam Key Insight**: View serializability is strictly more permissive than conflict serializability only when transactions perform **blind writes** (writing without reading first), which can make intermediate conflicting writes inconsequential.
 
 ---
 
@@ -3246,20 +3149,25 @@ Cycle T1→T2 and T2→T1 → **NOT conflict serializable**.
 
 ## 4.Z  Quick Reference — Schedule Classification Hierarchy
 
-```
-All Schedules
-   └── Recoverable (Tx commits only after all Tx it read-from commit)
-         └── Cascadeless / ACA (never reads dirty data)
-               └── Strict (never reads OR writes over dirty data)
-                     └── Serial
+```mermaid
+graph TD
+    subgraph Recoverability_Hierarchy ["Recoverability Classification Hierarchy"]
+        direction TB
+        A["All Schedules"] --> B["Recoverable Schedules<br>(Tx commits only after all Tx it read-from commit)"]
+        B --> C["Cascadeless Schedules / ACA<br>(Never reads dirty uncommitted data)"]
+        C --> D["Strict Schedules<br>(Never reads or writes uncommitted data)"]
+        D --> E["Serial Schedules"]
+    end
 ```
 
-Also separate hierarchy:
-```
-All Schedules
-   └── View Serializable
-         └── Conflict Serializable
-               └── Serial
+```mermaid
+graph TD
+    subgraph Serializability_Hierarchy ["Serializability Classification Hierarchy"]
+        direction TB
+        V1["All Schedules"] --> V2["View Serializable Schedules<br>(View equivalent to some serial schedule)"]
+        V2 --> V3["Conflict Serializable Schedules<br>(Precedence graph is acyclic)"]
+        V3 --> V4["Serial Schedules"]
+    end
 ```
 
 | Property | Requirement |
@@ -3445,19 +3353,14 @@ T2 → T4  (T2 waits for D held by T4)
 ```
 
 **Draw the graph**:
-```
-     T1 ──────→ T3
-     ↑           │
-     │           ↓
-     T2 ←────── T3
-     ↑
-     T4 (T2 → T4, T4 has no wait)
-```
-
-More precisely:
-```
-T1 → T3 → T2 → T1   (cycle!)
-                └→ T4  (no outgoing edge from T4)
+```mermaid
+flowchart LR
+    T1((T1)) -->|"Waits for C (held by T3)"| T3((T3))
+    T3 -->|"Waits for B (held by T2)"| T2((T2))
+    T2 -->|"Waits for A (held by T1)"| T1
+    T2 -->|"Waits for D (held by T4)"| T4((T4))
+    classDef cycleNode fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    class T1,T2,T3 cycleNode;
 ```
 
 **Cycle found**: T1 → T3 → T2 → T1.
@@ -3597,7 +3500,7 @@ No data pointers in internal nodes!
 
 ### 6.Y.1  Static Hashing
 
-**Concept**: Map search key K to bucket using **h(K) mod M** where M = number of buckets.
+**Concept**: Map search key K to bucket using **$h(K) \pmod M$** where M = number of buckets.
 
 **Structure**:
 ```
@@ -3664,7 +3567,7 @@ Directory (4 entries):
 
 **Worked Numerical Example**:
 
-Hash function h(K) = K mod 8 (3 bits). Bucket capacity = 2 records.
+Hash function $h(K) = K \pmod 8$ (3 bits). Bucket capacity = 2 records.
 
 Insert keys: 2, 10, 4, 6, 1, 3
 
@@ -3690,7 +3593,7 @@ Rehash B0 contents {2,10,4}:
 Let me redo: use last d bits. d=2, last 2 bits:
 - h(2)=010 → last 2 bits = 10 → goes to directory slot 10 → B1 (but B1 was for key-last-bit=1...)
 
-Let me use a cleaner example. Using h(K) = K mod 4 (2 bits), capacity = 2:
+Let me use a cleaner example. Using $h(K) = K \pmod 4$ (2 bits), capacity = 2:
 
 **d=1**, directory: {0→B0, 1→B1}
 
@@ -3794,18 +3697,24 @@ AND:           010000  → Record 2 only. ✓
 
 A primary (dense/sparse) index on a large file can itself be **too large to fit in memory**. Solution: build a **second-level (outer) sparse index** over the first-level index blocks.
 
-```
- Outer Index (sparse, one entry per inner index block):
- ┌────────────────────────────────┐
- │  K=100 → Block 0 of InnerIdx  │
- │  K=500 → Block 1 of InnerIdx  │
- └────────────────────────────────┘
-          ↓
- Inner Index (primary/sparse):
- Block 0: [100→data, 110→data, 120→data, ...]
- Block 1: [500→data, 510→data, 520→data, ...]
-          ↓
- Data Blocks (sorted by search key)
+```mermaid
+flowchart TD
+    subgraph Outer ["Outer Index (Level 2: Sparse, One entry per Level-1 block)"]
+        O1["K = 100 — Pointer to Level-1 Block 0"]
+        O2["K = 500 — Pointer to Level-1 Block 1"]
+    end
+    subgraph Inner ["Inner Index (Level 1: Primary Index)"]
+        I0["Block 0: [100 → Data, 110 → Data, 120 → Data]"]
+        I1["Block 1: [500 → Data, 510 → Data, 520 → Data]"]
+    end
+    subgraph Data ["Data Blocks (Physically Sorted on Search Key)"]
+        D0["Data Block 0: Records 100 to 499"]
+        D1["Data Block 1: Records 500 to 899"]
+    end
+    O1 --> I0
+    O2 --> I1
+    I0 --> D0
+    I1 --> D1
 ```
 
 **Access cost**:
@@ -4022,62 +3931,52 @@ WHERE  S.SID = SP.SID
 
 ### Step 1 — Initial (Naive) Query Tree
 
-```
-                π_{SName, PName}
-                      │
-                     ⋈ (P.PID = SP.PID)
-                   /       \
-     ⋈(S.SID=SP.SID)       σ_{Color='Green'}
-       /       \                    │
-      S        SP                   P
-```
-
-Wait — the naive tree applies all selections at top. Let's draw it properly:
-
-```
-         π_{SName,PName}
-               │
-         σ_{Color='Green' ∧ City='Delhi'}
-               │
-      ⋈_{P.PID=SP.PID}
-       /             \
-  ⋈_{S.SID=SP.SID}    P
-   /           \
-  S            SP
+```mermaid
+flowchart TD
+    Pi["π SName, PName"] --> Sigma["σ Color = 'Green' ∧ City = 'Delhi'"]
+    Sigma --> Join2["⋈ P.PID = SP.PID"]
+    Join2 --> Join1["⋈ S.SID = SP.SID"]
+    Join2 --> P["Parts (P)"]
+    Join1 --> S["Supplier (S)"]
+    Join1 --> SP["Supply (SP)"]
 ```
 
 **Problem**: σ applied after ALL joins — computes cartesian product first!
 
-### Step 2 — Push Selections Down (Rule 7: Cascade of σ, Rule 11: Pushing σ)
+### Step 2 — Push Selections Down (Rule 7: Cascade of $\sigma$, Rule 11: Pushing $\sigma$)
 
-Apply `σ_{City='Delhi'}` directly to S before any join.  
-Apply `σ_{Color='Green'}` directly to P before any join.
+Apply $\sigma_{\text{City} = \text{'Delhi'}}$ directly to $S$ before any join.  
+Apply $\sigma_{\text{Color} = \text{'Green'}}$ directly to $P$ before any join.
 
-```
-        π_{SName,PName}
-               │
-      ⋈_{P.PID=SP.PID}
-       /             \
-  ⋈_{S.SID=SP.SID}  σ_{Color='Green'}(P)
-   /           \
-σ_{City='Delhi'}(S)   SP
+```mermaid
+flowchart TD
+    Pi["π SName, PName"] --> Join2["⋈ P.PID = SP.PID"]
+    Join2 --> Join1["⋈ S.SID = SP.SID"]
+    Join2 --> SelP["σ Color = 'Green'"]
+    SelP --> P["Parts (P)"]
+    Join1 --> SelS["σ City = 'Delhi'"]
+    SelS --> S["Supplier (S)"]
+    Join1 --> SP["Supply (SP)"]
 ```
 
 **Benefit**: S filtered from 5000→100, P filtered from 10000→500. Joins now much smaller.
 
-### Step 3 — Push Projections Down (Rule 12: Pushing π)
+### Step 3 — Push Projections Down (Rule 12: Pushing $\pi$)
 
 After each operation, project away unused attributes.
 
-```
-         π_{SName,PName}
-               │
-      ⋈_{P.PID=SP.PID}
-       /                \
-  ⋈_{S.SID=SP.SID}    π_{PID,PName}(σ_{Color='Green'}(P))
-   /               \
-π_{SID,SName}      π_{SID,PID}(SP)
-(σ_{City='Delhi'}(S))
+```mermaid
+flowchart TD
+    Pi["π SName, PName"] --> Join2["⋈ P.PID = SP.PID"]
+    Join2 --> Join1["⋈ S.SID = SP.SID"]
+    Join2 --> ProjP["π PID, PName"]
+    ProjP --> SelP["σ Color = 'Green'"]
+    SelP --> P["Parts (P)"]
+    Join1 --> ProjS["π SID, SName"]
+    ProjS --> SelS["σ City = 'Delhi'"]
+    SelS --> S["Supplier (S)"]
+    Join1 --> ProjSP["π SID, PID"]
+    ProjSP --> SP["Supply (SP)"]
 ```
 
 **Benefit**: Each intermediate relation carries only needed columns → smaller tuples → more fit per block.
@@ -4089,37 +3988,40 @@ Based on Option A analysis: join filtered-S with SP first (smaller intermediate)
 This tree is already in that order. ✓
 
 **Final Optimized Tree**:
-```
-                π_{SName, PName}
-                        │
-                ⋈_{P.PID=SP.PID}
-               /                  \
-   ⋈_{S.SID=SP.SID}         π_{PID,PName}
-    /             \            (σ_{Color='Green'}(P))
-π_{SID,SName}    π_{SID,PID}
-(σ_{City='Delhi'}(S))  (SP)
+```mermaid
+flowchart TD
+    Pi["π SName, PName"] --> Join2["⋈ P.PID = SP.PID"]
+    Join2 --> Join1["⋈ S.SID = SP.SID"]
+    Join2 --> ProjP["π PID, PName"]
+    ProjP --> SelP["σ Color = 'Green'"]
+    SelP --> P["Parts (P)"]
+    Join1 --> ProjS["π SID, SName"]
+    ProjS --> SelS["σ City = 'Delhi'"]
+    SelS --> S["Supplier (S)"]
+    Join1 --> ProjSP["π SID, PID"]
+    ProjSP --> SP["Supply (SP)"]
 ```
 
 ---
 
 ## 7.Z  All 14 Equivalence Rules — Quick Reference Table
 
-| # | Rule | Informal Description |
-|---|------|---------------------|
-| 1 | σ_{θ1∧θ2}(E) ≡ σ_{θ1}(σ_{θ2}(E)) | Conjunctive selection splits (cascade) |
-| 2 | σ_{θ1}(σ_{θ2}(E)) ≡ σ_{θ2}(σ_{θ1}(E)) | Selections commute |
-| 3 | π_{L1}(π_{L2}(E)) ≡ π_{L1}(E) if L1⊆L2 | Projection cascade: keep outermost |
-| 4 | σ_θ(E1 ⋈ E2) ≡ E1 ⋈_θ E2 | Selection + cartesian = join |
-| 5a | σ_{θ1}(E1 ⋈_θ E2) ≡ σ_{θ1}(E1) ⋈_θ E2, θ1 on E1 only | Push selection into join operand |
-| 5b | σ_{θ1∧θ2}(E1 ⋈_θ E2) ≡ σ_{θ1}(E1) ⋈_θ σ_{θ2}(E2), θ1 on E1, θ2 on E2 | Split and push |
-| 6 | E1 ⋈_θ E2 ≡ E2 ⋈_θ E1 | Join commutes |
-| 7a | (E1 ⋈ E2) ⋈ E3 ≡ E1 ⋈ (E2 ⋈ E3) | Join associates |
-| 7b | (E1 ⋈_{θ1} E2) ⋈_{θ2∧θ3} E3 ≡ E1 ⋈_{θ1∧θ3} (E2 ⋈_{θ2} E3), θ2 on E2,E3 only | Associativity with conditions |
-| 8 | σ_θ(E1 ∪ E2) ≡ σ_θ(E1) ∪ σ_θ(E2) | σ distributes over ∪ |
-| 9 | σ_θ(E1 − E2) ≡ σ_θ(E1) − σ_θ(E2) ≡ σ_θ(E1) − E2 | σ distributes over − |
-| 10 | π_L(E1 ∪ E2) ≡ π_L(E1) ∪ π_L(E2) | π distributes over ∪ |
-| 11 | σ_θ(E1 ⋈ E2) ≡ σ_θ(E1) ⋈ E2, attr(θ)⊆attr(E1) | Push σ past ⋈ |
-| 12 | π_L(E1 ⋈_θ E2) ≡ π_L(π_{L1}(E1) ⋈_θ π_{L2}(E2)) | Push π past ⋈ |
+| # | Equivalence Rule (Formal Relational Algebra) | Semantic Description / Heuristic Role |
+| :---: | :--- | :--- |
+| **1** | $\sigma_{\theta_1 \land \theta_2}(E) \equiv \sigma_{\theta_1}(\sigma_{\theta_2}(E))$ | **Conjunctive selection cascade**: Split complex conditions into cascaded selections. |
+| **2** | $\sigma_{\theta_1}(\sigma_{\theta_2}(E)) \equiv \sigma_{\theta_2}(\sigma_{\theta_1}(E))$ | **Selection commutativity**: Can evaluate selections in any order (most selective first). |
+| **3** | $\pi_{L_1}(\pi_{L_2}(E)) \equiv \pi_{L_1}(E) \quad (L_1 \subseteq L_2)$ | **Projection cascade**: Consecutive projections collapse into the outermost projection. |
+| **4** | $\sigma_\theta(E_1 \times E_2) \equiv E_1 \bowtie_\theta E_2$ | **Theta-join formation**: Combine Cartesian product with selection into an equijoin. |
+| **5a** | $\sigma_{\theta_1}(E_1 \bowtie_\theta E_2) \equiv (\sigma_{\theta_1}(E_1)) \bowtie_\theta E_2 \quad (\text{attr}(\theta_1) \subseteq \text{attr}(E_1))$ | **Push selection into join**: Filter operand before evaluating expensive join. |
+| **5b** | $\sigma_{\theta_1 \land \theta_2}(E_1 \bowtie_\theta E_2) \equiv (\sigma_{\theta_1}(E_1)) \bowtie_\theta (\sigma_{\theta_2}(E_2))$ | **Split and push selection**: Push separate selection conditions into respective join inputs. |
+| **6** | $E_1 \bowtie_\theta E_2 \equiv E_2 \bowtie_\theta E_1$ | **Join commutativity**: Inner and outer relation roles can be swapped. |
+| **7a** | $(E_1 \bowtie E_2) \bowtie E_3 \equiv E_1 \bowtie (E_2 \bowtie E_3)$ | **Join associativity**: Join order can be grouped to minimize intermediate sizes. |
+| **7b** | $(E_1 \bowtie_{\theta_1} E_2) \bowtie_{\theta_2 \land \theta_3} E_3 \equiv E_1 \bowtie_{\theta_1 \land \theta_3} (E_2 \bowtie_{\theta_2} E_3)$ | **Conditional join associativity** (where $\theta_2$ involves attributes of $E_2, E_3$ only). |
+| **8** | $\sigma_\theta(E_1 \cup E_2) \equiv \sigma_\theta(E_1) \cup \sigma_\theta(E_2)$ | **Selection distributes over union**: Filter inputs prior to union. |
+| **9** | $\sigma_\theta(E_1 - E_2) \equiv \sigma_\theta(E_1) - \sigma_\theta(E_2) \equiv \sigma_\theta(E_1) - E_2$ | **Selection distributes over set difference**. |
+| **10** | $\pi_L(E_1 \cup E_2) \equiv \pi_L(E_1) \cup \pi_L(E_2)$ | **Projection distributes over union**. |
+| **11** | $\sigma_\theta(E_1 \bowtie E_2) \equiv (\sigma_\theta(E_1)) \bowtie E_2 \quad (\text{attr}(\theta) \subseteq \text{attr}(E_1))$ | **Push selection past natural join**. |
+| **12** | $\pi_L(E_1 \bowtie_\theta E_2) \equiv \pi_L\big(\pi_{L_1}(E_1) \bowtie_\theta \pi_{L_2}(E_2)\big)$ | **Push projection past join**: Eliminate unused attributes early ($L_1 = L \cap \text{attr}(E_1) \cup \text{join attrs}$). |
 
 > Rules 1-7 are the most frequently used in exam questions. Rules 5a, 5b, 6, 7a are key for join reordering.
 
@@ -4127,15 +4029,15 @@ This tree is already in that order. ✓
 
 ## 7.W  Cost Estimation — Key Formulas
 
-| Operation | Cost Formula | Notes |
-|-----------|-------------|-------|
-| **σ_A=v(R)** | \|R\| / V(R,A) | Uniform distribution assumption |
-| **σ_{A>v}(R)** | \|R\| × (max(A)−v)/(max(A)−min(A)) | Range selection |
-| **R ⋈ S on R.A=S.B** | \|R\|×\|S\| / max(V(R,A), V(S,B)) | Equijoin estimate |
-| **π_L(R)** | \|R\| (count unchanged) | Projection keeps all tuples |
-| **R ∪ S** | \|R\| + \|S\| | Upper bound (may have duplicates) |
-| **R ∩ S** | min(\|R\|, \|S\|) | Upper bound |
-| **R − S** | \|R\| | Upper bound (at most all of R) |
+| Operation | Output Cardinality / Cost Formula | Statistical Assumptions & Notes |
+| :--- | :--- | :--- |
+| **$\sigma_{A = v}(R)$** | $\displaystyle \frac{|R|}{V(R, A)}$ | Uniform distribution & independence assumption |
+| **$\sigma_{A > v}(R)$** | $\displaystyle |R| \cdot \frac{\max(A) - v}{\max(A) - \min(A)}$ | Continuous uniform distribution over key domain |
+| **$R \bowtie_{R.A = S.B} S$** | $\displaystyle \frac{|R| \cdot |S|}{\max(V(R, A), V(S, B))}$ | Containment of value sets; equijoin estimate |
+| **$\pi_L(R)$** | $|R|$ | Tuple count unchanged in multiset relational algebra |
+| **$R \cup S$** | $|R| + |S|$ | Upper bound (exact if sets disjoint) |
+| **$R \cap S$** | $\min(|R|, |S|)$ | Upper bound |
+| **$R - S$** | $|R|$ | Upper bound (at most all tuples of $R$) |
 
 **Cost of Nested Loop Join (block-based)**:
 $$\text{Cost} = b_R + b_R \times b_S$$
@@ -4197,8 +4099,8 @@ $$\text{Cost} = b_R + |R| \times \text{(index lookup cost + data fetch)}$$
 ## A.3  B+ Tree Key Formulas
 
 ```
-Order p:  p × (pointer size) + (p-1) × (key size) ≤ block size
-Order p_leaf: p_leaf × (key + record ptr) + block ptr ≤ block size
+Order p:  $p \cdot P_{\text{block}} + (p - 1) \cdot K \le B$
+Order p_leaf: $p_{\text{leaf}} \cdot (K + P_{\text{rec}}) + P_{\text{block}} \le B$
 
 Leaf nodes = ⌈N / p_leaf⌉        (N = number of records, dense index)
 Height h such that p^h ≥ leaf nodes
@@ -4285,7 +4187,7 @@ Data blocks for file = ⌈N / Bfr⌉  where Bfr = ⌊block_size / record_size⌋
 
 **Q10** *(Index types)*: Compare primary, secondary, and clustering indexes for a Student table (StudentID, Name, CGPA, BranchID). Which index is most efficient for: (a) looking up by StudentID, (b) range query on CGPA, (c) finding all students in a branch?
 
-**Q11** *(Hashing)*: Explain extendible hashing. Given 4 initial buckets (d=2) and bucket capacity=3: insert keys 2, 7, 1, 11, 5, 15 (use h(K) = K mod 8). Show the directory and buckets after each insertion. When does the directory double?
+**Q11** *(Hashing)*: Explain extendible hashing. Given 4 initial buckets (d=2) and bucket capacity=3: insert keys 2, 7, 1, 11, 5, 15 (use $h(K) = K \pmod 8$). Show the directory and buckets after each insertion. When does the directory double?
 
 ## B.4  Query Optimization Questions
 
